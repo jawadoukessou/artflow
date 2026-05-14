@@ -1,0 +1,667 @@
+// ArFlow - Complete Prisma Schema
+// B2B Accounts Receivable & Credit Management Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// TENANT & AUTH
+// ─────────────────────────────────────────────
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  domain      String?
+  logoUrl     String?
+  plan        Plan     @default(STARTER)
+  isActive    Boolean  @default(true)
+  settings    Json     @default("{}")
+  currency    String   @default("EUR")
+  timezone    String   @default("Europe/Paris")
+  country     String   @default("FR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  customers       Customer[]
+  invoices        Invoice[]
+  payments        Payment[]
+  tasks           Task[]
+  workflows       Workflow[]
+  erpConnections  ERPConnection[]
+  syncLogs        SyncLog[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  reports         Report[]
+  communications  Communication[]
+  disputes        Dispute[]
+
+  @@map("companies")
+}
+
+enum Plan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  firstName    String
+  lastName     String
+  avatarUrl    String?
+  phone        String?
+  isActive     Boolean   @default(true)
+  isMfaEnabled Boolean   @default(false)
+  mfaSecret    String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyId  String
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleId     String
+  role       Role       @relation(fields: [roleId], references: [id])
+
+  assignedCustomers  Customer[]     @relation("CollectorCustomers")
+  assignedTasks      Task[]         @relation("AssignedTasks")
+  createdTasks       Task[]         @relation("CreatedTasks")
+  auditLogs          AuditLog[]
+  communications     Communication[]
+  refreshTokens      RefreshToken[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  permissions Permission[]
+  users       User[]
+  createdAt   DateTime     @default(now())
+
+  @@map("roles")
+}
+
+model Permission {
+  id       String   @id @default(uuid())
+  action   String   // e.g. "read", "write", "delete"
+  subject  String   // e.g. "Customer", "Invoice", "Report"
+  roles    Role[]
+
+  @@unique([action, subject])
+  @@map("permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMERS & CONTACTS
+// ─────────────────────────────────────────────
+
+model Customer {
+  id              String          @id @default(uuid())
+  code            String
+  name            String
+  legalName       String?
+  vatNumber       String?
+  siret           String?
+  website         String?
+  industry        String?
+  country         String          @default("FR")
+  address         String?
+  city            String?
+  postalCode      String?
+  currency        String          @default("EUR")
+  creditLimit     Decimal         @default(0) @db.Decimal(15, 2)
+  paymentTerms    Int             @default(30) // days
+  status          CustomerStatus  @default(ACTIVE)
+  segment         CustomerSegment @default(SMB)
+  erpReference    String?
+  notes           String?
+  tags            String[]
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  collectorId  String?
+  collector    User?     @relation("CollectorCustomers", fields: [collectorId], references: [id])
+
+  contacts         Contact[]
+  invoices         Invoice[]
+  payments         Payment[]
+  disputes         Dispute[]
+  tasks            Task[]
+  riskScores       RiskScore[]
+  communications   Communication[]
+  creditInsurance  CreditInsurance?
+
+  @@unique([companyId, code])
+  @@map("customers")
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  LEGAL
+  CLOSED
+}
+
+enum CustomerSegment {
+  KEY_ACCOUNT
+  SMB
+  MICRO
+  PROSPECT
+}
+
+model Contact {
+  id         String   @id @default(uuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  mobile     String?
+  role       String?
+  isPrimary  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("contacts")
+}
+
+model CreditInsurance {
+  id          String   @id @default(uuid())
+  insurer     String?
+  policyRef   String?
+  coveredLimit Decimal @default(0) @db.Decimal(15, 2)
+  expiresAt   DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customerId  String   @unique
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("credit_insurances")
+}
+
+// ─────────────────────────────────────────────
+// INVOICES & PAYMENTS
+// ─────────────────────────────────────────────
+
+model Invoice {
+  id              String        @id @default(uuid())
+  number          String
+  erpReference    String?
+  status          InvoiceStatus @default(PENDING)
+  currency        String        @default("EUR")
+  amount          Decimal       @db.Decimal(15, 2)
+  amountPaid      Decimal       @default(0) @db.Decimal(15, 2)
+  amountDue       Decimal       @db.Decimal(15, 2)
+  taxAmount       Decimal       @default(0) @db.Decimal(15, 2)
+  issueDate       DateTime
+  dueDate         DateTime
+  paidAt          DateTime?
+  reminderCount   Int           @default(0)
+  lastReminderAt  DateTime?
+  promiseDate     DateTime?
+  notes           String?
+  lineItems       Json          @default("[]")
+  attachmentUrl   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+
+  payments        Payment[]
+  disputes        Dispute[]
+  communications  Communication[]
+  tasks           Task[]
+
+  @@unique([companyId, number])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  OVERDUE
+  PARTIALLY_PAID
+  PAID
+  DISPUTED
+  PROMISE_TO_PAY
+  LEGAL
+  CANCELLED
+  BAD_DEBT
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  reference     String?
+  amount        Decimal       @db.Decimal(15, 2)
+  currency      String        @default("EUR")
+  method        PaymentMethod @default(BANK_TRANSFER)
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  erpReference  String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  invoiceId   String?
+  invoice     Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  CHECK
+  CASH
+  DIRECT_DEBIT
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  BOUNCED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────
+// DISPUTES
+// ─────────────────────────────────────────────
+
+model Dispute {
+  id          String        @id @default(uuid())
+  reference   String?
+  type        DisputeType   @default(AMOUNT)
+  status      DisputeStatus @default(OPEN)
+  reason      String
+  description String?
+  amount      Decimal       @db.Decimal(15, 2)
+  resolvedAt  DateTime?
+  resolution  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  invoiceId   String?
+  invoice     Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  communications Communication[]
+
+  @@map("disputes")
+}
+
+enum DisputeType {
+  AMOUNT
+  QUALITY
+  DELIVERY
+  DUPLICATE
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+  ESCALATED
+}
+
+// ─────────────────────────────────────────────
+// RISK SCORING
+// ─────────────────────────────────────────────
+
+model RiskScore {
+  id              String     @id @default(uuid())
+  score           Int        // 0-100
+  level           RiskLevel
+  dso             Float?
+  avgPaymentDelay Float?
+  overdueRatio    Float?
+  creditUtilization Float?
+  latePaymentFreq Float?
+  factors         Json       @default("{}")
+  model           String     @default("v1")
+  computedAt      DateTime   @default(now())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("risk_scores")
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ─────────────────────────────────────────────
+// TASKS
+// ─────────────────────────────────────────────
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  type        TaskType     @default(FOLLOW_UP)
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(PENDING)
+  dueAt       DateTime?
+  completedAt DateTime?
+  result      String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assigneeId   String?
+  assignee     User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  createdById  String?
+  createdBy    User?     @relation("CreatedTasks", fields: [createdById], references: [id])
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  invoiceId    String?
+  invoice      Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  @@map("tasks")
+}
+
+enum TaskType {
+  CALL
+  EMAIL
+  MEETING
+  FOLLOW_UP
+  DISPUTE
+  LEGAL
+  REPORT
+  OTHER
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+// ─────────────────────────────────────────────
+// COMMUNICATIONS
+// ─────────────────────────────────────────────
+
+model Communication {
+  id          String            @id @default(uuid())
+  type        CommunicationType @default(EMAIL)
+  direction   Direction         @default(OUTBOUND)
+  subject     String?
+  body        String?
+  status      CommStatus        @default(SENT)
+  sentAt      DateTime?
+  openedAt    DateTime?
+  metadata    Json              @default("{}")
+  createdAt   DateTime          @default(now())
+
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  invoiceId   String?
+  invoice     Invoice?  @relation(fields: [invoiceId], references: [id])
+  disputeId   String?
+  dispute     Dispute?  @relation(fields: [disputeId], references: [id])
+
+  @@map("communications")
+}
+
+enum CommunicationType {
+  EMAIL
+  SMS
+  PHONE
+  LETTER
+  PORTAL
+  NOTE
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum CommStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  OPENED
+  FAILED
+  BOUNCED
+}
+
+// ─────────────────────────────────────────────
+// WORKFLOWS & AUTOMATION
+// ─────────────────────────────────────────────
+
+model Workflow {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  trigger     String         // e.g. "invoice.overdue", "payment.received"
+  isActive    Boolean        @default(true)
+  conditions  Json           @default("[]")
+  execCount   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  steps     WorkflowStep[]
+
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id         String   @id @default(uuid())
+  order      Int
+  type       String   // send_email, send_sms, create_task, assign_collector, escalate
+  config     Json     @default("{}")
+  delayDays  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_steps")
+}
+
+// ─────────────────────────────────────────────
+// ERP INTEGRATIONS
+// ─────────────────────────────────────────────
+
+model ERPConnection {
+  id           String        @id @default(uuid())
+  name         String
+  type         ERPType
+  status       ConnStatus    @default(PENDING)
+  host         String?
+  apiEndpoint  String?
+  credentials  Json          @default("{}") // encrypted
+  fieldMapping Json          @default("{}")
+  syncSchedule String?       // cron expression
+  lastSyncAt   DateTime?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  syncLogs  SyncLog[]
+
+  @@map("erp_connections")
+}
+
+enum ERPType {
+  SAP
+  ORACLE
+  DYNAMICS
+  SAGE
+  ODOO
+  NETSUITE
+  QUICKBOOKS
+  CUSTOM
+  CSV
+}
+
+enum ConnStatus {
+  PENDING
+  CONNECTED
+  ERROR
+  PAUSED
+}
+
+model SyncLog {
+  id           String      @id @default(uuid())
+  type         String      // invoices, customers, payments
+  status       SyncStatus  @default(RUNNING)
+  recordsTotal Int         @default(0)
+  recordsOk    Int         @default(0)
+  recordsFail  Int         @default(0)
+  errors       Json        @default("[]")
+  durationMs   Int?
+  startedAt    DateTime    @default(now())
+  finishedAt   DateTime?
+
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  erpConnectionId String?
+  erpConnection   ERPConnection? @relation(fields: [erpConnectionId], references: [id])
+
+  @@map("sync_logs")
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+// ─────────────────────────────────────────────
+// AUDIT & NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  subject    String
+  subjectId  String?
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  message   String
+  data      Json     @default("{}")
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// REPORTS
+// ─────────────────────────────────────────────
+
+model Report {
+  id         String     @id @default(uuid())
+  name       String
+  type       ReportType
+  params     Json       @default("{}")
+  data       Json?
+  fileUrl    String?
+  status     String     @default("pending")
+  createdAt  DateTime   @default(now())
+  finishedAt DateTime?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+enum ReportType {
+  AGING
+  DSO
+  COLLECTOR_PERFORMANCE
+  CASH_COLLECTION
+  CUSTOMER_RISK
+  DISPUTE_ANALYTICS
+  PAYMENT_TRENDS
+}

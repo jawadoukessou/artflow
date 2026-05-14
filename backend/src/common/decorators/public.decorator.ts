@@ -1,0 +1,24 @@
+import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { RequiredPermission } from '../guards/permissions.guard';
+
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
+export const PERMISSIONS_KEY = 'permissions';
+export const Permissions = (...permissions: RequiredPermission[]) =>
+  SetMetadata(PERMISSIONS_KEY, permissions);
+
+export const CurrentUser = createParamDecorator(
+  (data: string | undefined, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    const user = request.user;
+    return data ? user?.[data] : user;
+  },
+);
+
+export const TenantId = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.user?.companyId;
+  },
+);
