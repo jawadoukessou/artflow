@@ -9,7 +9,6 @@ export class UsersService {
   async findAll(companyId: string) {
     return this.prisma.user.findMany({
       where: { companyId },
-      include: { role: true },
       select: { id:true, email:true, firstName:true, lastName:true, isActive:true, lastLoginAt:true, role:true, createdAt:true },
     });
   }
