@@ -36,7 +36,7 @@ export class AiService {
   }
 
   generateEmail(customerName: string, invoiceNumber: string, amount: number, daysOverdue: number): string {
-    return \`Subject: Important: Invoice \${invoiceNumber} — Immediate Action Required
+    return `Subject: Important: Invoice ${invoiceNumber} - Immediate Action Required`;
 
 Dear Finance Team,
 
