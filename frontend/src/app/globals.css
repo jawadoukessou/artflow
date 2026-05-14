@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  --radius: 0.5rem;
-}
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
 
   .dark {
     --background: 222 47% 8%;
@@ -43,90 +43,124 @@
     --accent-foreground: 200 85% 65%;
   }
 
-  * { border-color: hsl(var(--border)); }
+  * {
+    border-color: hsl(var(--border));
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-feature-settings: 'rlig' 1, 'calt' 1;
     -webkit-font-smoothing: antialiased;
   }
 }
 
 @layer components {
-  /* Dense table styles */
   .data-table th {
     @apply px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-secondary/50 border-b border-border cursor-pointer select-none whitespace-nowrap;
   }
-  .data-table th:hover { @apply text-foreground; }
+  .data-table th:hover {
+    @apply text-foreground;
+  }
   .data-table td {
     @apply px-3 py-2 text-sm border-b border-border/60 whitespace-nowrap;
   }
-  .data-table tr:last-child td { @apply border-b-0; }
-  .data-table tr:hover td { @apply bg-accent/40; }
-  .data-table tr.overdue td { @apply bg-danger-light/30; }
-  .data-table tr.overdue:hover td { @apply bg-danger-light/50; }
+  .data-table tr:last-child td {
+    @apply border-b-0;
+  }
+  .data-table tr:hover td {
+    @apply bg-accent/40;
+  }
+  .data-table tr.overdue td {
+    @apply bg-red-100/30;
+  }
+  .data-table tr.overdue:hover td {
+    @apply bg-red-100/50;
+  }
 
-  /* Status pills */
-  .pill-paid    { @apply bg-green-100 text-green-800; }
-.pill-overdue { @apply bg-red-100 text-red-800; }
-.pill-partial { @apply bg-yellow-100 text-yellow-800; }
-.pill-info    { @apply bg-blue-100 text-blue-800; }
-  .pill-disputed{ @apply bg-purple-100 text-purple-800; }
-  .pill-pending { @apply bg-secondary text-secondary-foreground; }
-  .pill-legal   { @apply bg-red-200 text-red-900; }
-  .pill-info    { @apply bg-info-light text-info-dark; }
+  .pill {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-bold tracking-wide;
+  }
+  .pill-paid     { @apply bg-green-100 text-green-800; }
+  .pill-overdue  { @apply bg-red-100 text-red-800; }
+  .pill-partial  { @apply bg-yellow-100 text-yellow-800; }
+  .pill-disputed { @apply bg-purple-100 text-purple-800; }
+  .pill-pending  { @apply bg-secondary text-secondary-foreground; }
+  .pill-legal    { @apply bg-red-200 text-red-900; }
+  .pill-info     { @apply bg-blue-100 text-blue-800; }
 
-  /* Risk badges */
-  .risk-a { @apply text-success-dark font-bold; }
+  .risk-a { @apply text-green-700 font-bold; }
   .risk-b { @apply text-green-600 font-bold; }
-  .risk-c { @apply text-warning-dark font-bold; }
+  .risk-c { @apply text-yellow-600 font-bold; }
   .risk-d { @apply text-orange-600 font-bold; }
-  .risk-e       { @apply text-red-600 font-bold; }
+  .risk-e { @apply text-red-600 font-bold; }
 
-  /* KPI card */
   .kpi-card {
     @apply bg-card border border-border rounded-lg p-4 border-t-4;
   }
 
-  /* Sidebar nav */
   .nav-item {
-    @apply flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground cursor-pointer
-           border-l-2 border-transparent transition-all duration-100 hover:bg-accent hover:text-foreground;
+    @apply flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground cursor-pointer border-l-2 border-transparent transition-all duration-100 hover:bg-accent hover:text-foreground;
   }
   .nav-item.active {
     @apply bg-accent text-primary border-l-primary font-semibold;
   }
 
-  /* Card */
   .panel {
     @apply bg-card border border-border rounded-lg;
   }
   .panel-header {
     @apply px-4 py-3 border-b border-border flex items-center justify-between text-sm font-semibold;
   }
-  .panel-body { @apply p-4; }
+  .panel-body {
+    @apply p-4;
+  }
 
-  /* Form elements */
-  .form-label { @apply text-xs font-semibold text-muted-foreground mb-1 block; }
+  .form-label {
+    @apply text-xs font-semibold text-muted-foreground mb-1 block;
+  }
   .form-input {
-    @apply w-full border border-border rounded bg-background text-sm px-2.5 py-1.5
-           focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors;
+    @apply w-full border border-border rounded bg-background text-sm px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors;
   }
   .form-select {
-    @apply border border-border rounded bg-background text-sm px-2.5 py-1.5
-           focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply border border-border rounded bg-background text-sm px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary;
   }
 
-  /* Aging bars */
-  .aging-bar-track { @apply flex-1 h-3 bg-secondary rounded overflow-hidden; }
-  .aging-bar-fill { @apply h-full rounded transition-all duration-700; }
+  .aging-bar-track {
+    @apply flex-1 h-3 bg-secondary rounded overflow-hidden;
+  }
+  .aging-bar-fill {
+    @apply h-full rounded transition-all duration-700;
+  }
 }
 
 @layer utilities {
-  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
-  .scrollbar-thin::-webkit-scrollbar { width: 5px; height: 5px; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
-  .text-balance { text-wrap: balance; }
-  .animate-fade-in { animation: fadeIn .2s ease-in-out; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
