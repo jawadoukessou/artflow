@@ -35,16 +35,22 @@ export class AiService {
     return map[level || 'LOW'];
   }
 
-  generateEmail(customerName: string, invoiceNumber: string, amount: number, daysOverdue: number): string {
-    return `Subject: Important: Invoice ${invoiceNumber} - Immediate Action Required`;
+  generateEmail(
+  customerName: string,
+  invoiceNumber: string,
+  amount: number,
+  daysOverdue: number
+): string {
+  return `
+Subject: Important: Invoice ${invoiceNumber} - Immediate Action Required
 
 Dear Finance Team,
 
-We are writing regarding invoice \${invoiceNumber} (€\${amount.toLocaleString()}) which is now \${daysOverdue} days past due. Despite our previous reminders, no payment has been received.
+We are writing regarding invoice ${invoiceNumber} (€${amount.toLocaleString()}) which is now ${daysOverdue} days past due. Despite our previous reminders, no payment has been received.
 
 Please arrange full payment or contact us within 5 business days to avoid further escalation including potential credit suspension and legal proceedings.
 
 Best regards,
-Credit Management Team\`;
-  }
+Credit Management Team
+`;
 }
