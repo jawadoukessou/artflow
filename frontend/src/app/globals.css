@@ -147,8 +147,8 @@
     border-radius: 3px;
   }
   .text-balance {
-    text-wrap: balance;
-  }
+  text-wrap: pretty;
+}
   .animate-fade-in {
     animation: fadeIn 0.2s ease-in-out;
   }
